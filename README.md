@@ -1,10 +1,8 @@
 # banking_system
 
-####################################
 # Desenvolvedor: Vinicius Garcia   #
 # Data: 06/06/2025                 #
 # Descrição: Sistema bancário      #
-####################################
 
 Aplicação simples desenvolvida simulando um sistema de banco com menu e opções de:
 
