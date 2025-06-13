@@ -1,253 +1,350 @@
-import time
+from datetime import datetime
 import textwrap
+from abc import ABC, abstractmethod
 
 ####################################
 # Desenvolvedor: Vinicius Garcia   #
 # Data: 06/06/2025                 #
-# Atualizado: 09/06/2025           #
+# Atualizado: 12/06/2025           #
 # Descrição: Sistema bancário      #
 ####################################
 
-class BankSystem():
-    def __init__(self):
+class Client:
+    def __init__(self, andress):
+        self.address = andress
         self.accounts = []
-        self.users_names = {}
-        self.agency = '0001'
-        self.initial_balance = 0
-        self.max_account_number = 100  #simulado busca da maior conta
-        self.login_name = ''
-        self.login_account_number = ''
-        self.max_withdrawal = 1000  
-        self.count_withdrawals = 0 
-        self.extract = ""
-        self.show_menu()
 
-    def show_menu(self):
-        menu = f"""\n
-        ____________________________________\n
-        Bem-vindo ao Sistema Bancário {self.login_name}!
+    def make_transaction(self, account, transaction):
+        transaction.register(account)
 
-        1. \tCriar conta
-        2. \tCriar usuário
-        3. \tAcessar conta
-        4. \tDepositar
-        5. \tSacar
-        6. \tConsultar saldo
-        7. \tExibir contas cadastradas
-        8. \tSair
+    def add_account(self, account):
+        self.accounts.append(account)
 
-        Escolha uma opção: """
+class NaturalPerson(Client):
+    def __init__(self, name, cpf, date_of_birth, address):
+        super().__init__(address)
+        self.name = name
+        self.cpf = cpf
+        self.date_of_birth = date_of_birth
 
-        print(textwrap.dedent(menu))
+class Account():
+    def __init__(self, account_number, client):
+        self._account_number = account_number
+        self._client = client
+        self._balance = 0.0
+        self._extract = History()
+        self._agency = "0001"
+    
+    @classmethod
+    def new_account(cls, client, account_number):
+        return cls(account_number, client)
+    
+    @property
+    def balance(self):
+        return self._balance
+    
+    @property
+    def account_number(self):
+        return self._account_number
+    
+    @property
+    def agency(self):
+        return self._agency
+    
+    @property
+    def client(self):   
+        return self._client
+    
+    @property
+    def extract(self):
+        return self._extract
+    
+    def withdraw(self, amount):
+        balance = self.balance
+        max_withdraw = amount > balance
+        if max_withdraw:
+            print("Saldo insuficiente para saque.")
 
-        while True:
-            choice = input().strip()
-            if choice == '1':
-                account = self.create_account(self.agency, self.max_account_number, self.users_names)
-                if account:
-                    self.accounts.append(account)
-                self.show_menu()
-
-            elif choice == '2':
-                self.create_user(self.users_names)
-
-            elif choice == '3':
-                self.login(self.accounts)
-
-            elif choice == '4':
-                values = self.deposit(self.login_account_number, self.accounts, self.extract)
-                if values:
-                    for account in self.accounts:
-                        if account['numero_conta'] == self.login_account_number:
-                            account['saldo'] = values[0]
-                            print(f"\nDepósito realizado com sucesso! Saldo atual: R$ {account['saldo']:.2f}")
-                self.show_menu()
-                
-            elif choice == '5':
-                value = input("\nDigite o valor a ser sacado: ").strip()
-                values = self.withdraw(value, self.extract, self.login_account_number, self.accounts, self.max_withdrawal, self.count_withdrawals)
-                if values:
-                    for account in self.accounts:
-                        if account['numero_conta'] == self.login_account_number:
-                            account['saldo'] -= values[0]
-                            self.count_withdrawals += 1
-                            print(f"\nSaque realizado com sucesso! Saldo atual: R$ {account['saldo']:.2f}")
-                self.show_menu()
-
-            elif choice == '6':
-                for account in self.accounts:
-                    if account['numero_conta'] == self.login_account_number:
-                        balance = account['saldo']
-                        break
-                self.get_balance(balance, extract=self.extract)
-
-            elif choice == '7':
-                self.show_accounts(self.accounts)
-
-            elif choice == '8':
-                print("\nSaindo do sistema. Até logo!")
-                break
-            
-            else:
-                print("\nOpção inválida. Tente novamente.")
-                time.sleep(2)
-                self.show_menu()
-
-    def create_user(self, users):
-        cpf = input("\nDigite o CPF(sem pontos) do usuário: ").strip()
-        usuario_existe = self.filter_user(cpf, users)
-        if not usuario_existe:
-            name = input("Digite o nome do usuário: ").strip()
-            date_of_birth = input("Digite a data de nascimento do usuário (DD-MM-AAAA): ").strip()
-            andress = input("Digite o endereço (logradouro, numero - bairro - cidade/estado abreviado): ").strip()
-
-            if name and date_of_birth and andress:
-                self.users_names[cpf] = {
-                    'name': name,
-                    'date_of_birth': date_of_birth,
-                    'cpf': cpf,
-                    'andress': andress
-                }
-                print(f"Usuário {name} criado com sucesso! CPF: {cpf}")
-                time.sleep(3)  
-                self.show_menu()
-            else:
-                print("Verifique os campos e tente novamente.")
-                time.sleep(3)
-                self.show_menu()
-        
-        else:
-            print(f"Usuário com CPF {cpf} já existe.")
-            time.sleep(3)
-            self.show_menu()
-
-    def filter_user(self, cpf, users):
-        if cpf in users:
+        elif balance > 0:
+            self._balance -= amount
+            print(f"Saque realizado com sucesso!")
             return True
+
         else:
+            print("Informe um valor válido para saque.")
+
+        return False 
+    
+    def deposit(self, amount):
+        if amount > 0:
+            self._balance += amount
+            print(f"Depósito realizado com sucesso!")
+        else:
+            print("Informe um valor válido para depósito.")
             return False
+        return True
+      
+class CurrentAccount(Account):
+    def __init__(self, account_number,  client, max_withdraw_value=500, max_withdraw=3):
+        super().__init__(account_number, client)
+        self.max_withdraw_value = max_withdraw_value
+        self.max_withdraw = max_withdraw
+    
+    def withdraw(self, amount):
+        number_withdraws = len(
+            [transition for transition in self.extract.transactions 
+             if transition["tipo"] == "Saque"]) #Withdraw.__name__])
+        
+        exceeded_withdraw_value = amount >= self.max_withdraw_value
+        exceeded_withdraw = number_withdraws >= self.max_withdraw
 
-    def create_account(self, agency, account_number, users):
-        cpf = input("\nDigite o CPF(sem pontos) do titular da conta: ").strip()
-        user = self.filter_user(cpf, users)
-        if user:
-            new_account_number = account_number + 1
-            self.max_account_number = new_account_number
-            print(f"Conta criada com sucesso! Número da conta: {new_account_number}, CPF: {cpf}")
-            return {"agencia:": agency, "numero_conta": new_account_number, "cpf": cpf, "nome": users[cpf]['name'], "saldo": self.initial_balance}
-        else:
-            print("Usuário não encontrado. Por favor, crie um usuário primeiro.")
-            time.sleep(3)
-            self.show_menu()
 
-    def login(self, accounts):
-        data = None
-        account_number = int(input("\nDigite o Numero da Conta: ").strip())
-
-        for account in accounts:
-            if account['numero_conta'] == account_number:
-                data = account
-                break
-            
-            print("Conta não encontrada. Verifique o número da conta.")
-            time.sleep(3)
-            self.show_menu()
-
-        if data:
-            print(f"\nBem-vindo {data['nome']}, você está logado na conta {account_number}.")
-            self.login_name = data['nome']
-            self.login_account_number = account_number 
-            time.sleep(2)
-            self.show_menu()
-        else:
-            print("Conta não encontrada. Verifique o número da conta.")
-            time.sleep(3)
-            self.show_menu()
-
-    def deposit(self, login_account_number, accounts, extract, /):
-        if login_account_number == '':
-            print("\nVocê precisa estar logado para realizar um depósito.")
-            time.sleep(3)
-            self.show_menu()
+        if exceeded_withdraw_value:
+            print("Valor de saque excedido.")
+            return False
+        if exceeded_withdraw:
+            print("Número máximo de saques excedido.")
+            return False
         
         else:
-            amount = float(input("\nDigite o valor a ser depositado: ").strip())
-            if amount <= 0:
-                print("Não é possível depositar um valor negativo ou zero.")
-            
-            else:
-                for account in accounts:
-                    if account['numero_conta'] == login_account_number:
-                        self.login_account_number = account['numero_conta']
-                        balance = account['saldo']
-                        balance += amount
-                        self.extract += f"Depósito: R$ {amount:.2f}\n"
-                        return balance, extract
+            return super().withdraw(amount)
+        
+        return False
+    
+    def __str__(self):
+        return f"""
+        Agência: {self.agency}
+        Conta: {self.account_number}
+        Titular: {self.client.name}
+        """
+    
+class History():
+    def __init__(self):
+        self._transactions = []
+    
+    @property
+    def transactions(self):
+        return self._transactions
+    
+    def add_transaction(self, transaction):
+        self._transactions.append(
+            {
+                "tipo": transaction.__class__.__name__,
+                "valor": transaction.amount,
+                "data": datetime.now().strftime("%d-%m-%Y %H:%M:%S") 
+            }
+        )
 
-    def withdraw(self, value, extract, account_number, accounts, max_withdrawal, count_withdrawals):
-        if count_withdrawals == 3:
-            print("Você atingiu o limite de saques diários. Tente novamente amanhã.")
-            time.sleep(3)
-            self.show_menu()
-            return
-        
-        if account_number == '':
-            print("\nVocê precisa estar logado para realizar um saque.")
-            time.sleep(3)
-            self.show_menu()
-            return
-        
+class Transaction(ABC):
+    @property
+    @abstractmethod
+    def amount(self):
+        pass
+
+    @abstractmethod
+    def register(self, account):
+        pass
+
+class Withdraw(Transaction):
+    def __init__(self, amount):
+        self._amount = amount
+
+    @property  
+    def amount(self):
+        return self._amount
+
+    def register(self, account):
+        sucess_transaction = account.withdraw(self._amount)
+        if sucess_transaction:
+            account.extract.add_transaction(self)
+
+class Deposit(Transaction):
+    def __init__(self, amount):
+        self._amount = amount
+
+    @property
+    def amount(self):
+        return self._amount
+    
+    def register(self, account):
+        sucess_transaction = account.deposit(self._amount)
+        if sucess_transaction:
+            account.extract.add_transaction(self)
+
+def show_menu():
+    menu = """\n
+    Bem-vindo ao Sistema Bancário!
+    
+    [1]\tDepositar
+    [2]\tSacar
+    [3]\tConsultar Extrato
+    [4]\tCriar Conta
+    [5]\tAdicionar Cliente
+    [6]\tConsultar Cliente
+
+    [0]\tSair
+    """
+    return input(textwrap.dedent(menu))
+
+def main():
+    clients = []
+    accounts = []
+
+
+    while True:
+        option = show_menu()
+
+        if option == "1":
+            deposit(clients)
+
+        elif option == "2":
+            withdraw(clients)
+
+        elif option == "3":
+            show_extract(clients)
+
+        elif option == "4":
+            account_number = len(accounts) + 1
+            create_account(account_number, clients, accounts)
+
+        elif option == "5":
+            add_client(clients)
+
+        elif option == "6":
+            show_client(clients)
+
+        elif option == "0":
+            print("Saindo do sistema...")
+            break
         else:
-            if int(value) <= 0:
-                print("\nNão é possível sacar um valor negativo ou zero.")
-                time.sleep(3)
-                self.show_menu()
+            print("Opção inválida. Tente novamente.")
 
-            elif int(value) > max_withdrawal:
-                print(f"\nO valor máximo para saque é R$ {max_withdrawal:.2f}.")
-                time.sleep(3)
-                self.show_menu()
+def deposit(clients):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
 
-            else:
-                for account in accounts:
-                    if account['numero_conta'] == account_number:
-                        if account['saldo'] < int(value):
-                            print("\nSaldo insuficiente para realizar o saque.")
-                            time.sleep(3)
-                            self.show_menu()
-                            return
+    if not client:
+        print("Cliente não encontrado.")
+        return
+    
+    amount = float(input("Informe o valor do depósito: "))
+    transition = Deposit(amount)
 
-                        self.extract += f"Saque: R$ {int(value):.2f}\n"
-                        return int(value), extract
+    account = client_recover_account(client)
+    if not account:
+        return
 
-                time.sleep(3)
-                self.show_menu()
+    client.make_transaction(account, transition)
 
-    def get_balance(self, balance, /, *, extract=''):
-        if self.login_account_number == '':
-            print("\nVocê precisa estar logado para consultar o saldo.")
-            time.sleep(3)
-            self.show_menu()
-        
-        else:
-            print(f"\nExtrato da conta:\n {extract}")
-            print(f"\nSaldo Total: R$ {balance:.2f}")
-            print("Pressione Enter para ver o extrato.")
-            input()
-            self.show_menu()
+def withdraw(clients):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
 
-    def show_accounts(self, accounts):
-        if not accounts:
-            print("\nNenhuma conta cadastrada.")
-        else:
-            print("\nContas cadastradas:")
-            for account in accounts:
-                print(f"Agência: {account['agencia:']}, Número da Conta: {account['numero_conta']}, Nome: {account['nome']}")
-        
-        print("\nPressione Enter para voltar ao menu principal.")
-        input()
-        self.show_menu()
+    if not client:
+        print("Cliente não encontrado.")
+        return
+    
+    amount = float(input("Informe o valor do saque: "))
+    transition = Withdraw(amount)
+
+    account = client_recover_account(client)
+    if not account:
+        return
+
+    client.make_transaction(account, transition)
+
+def filter_client(cpf, clients):
+    client_found = [client for client in clients if getattr(client, 'cpf', None) == cpf]
+    return client_found[0] if client_found else None
+
+def client_recover_account(client):
+    if not client.accounts:
+        print("Cliente não possui conta.")
+        return None
+    
+    return client.accounts[0]
+
+def show_extract(clients):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
+
+    if not client:
+        print("Cliente não encontrado.")
+        return
+    
+    account = client_recover_account(client)
+    if not account:
+        return
+
+    print(f"\n============= Extrato da conta ============= ")
+    transitions = account.extract.transactions
+    extract = ''
+
+    if not transitions:
+        extract = "Nenhuma transação realizada."
+    else:
+        for transition in transitions:
+            extract += f"\n{str(transition['tipo']).replace('Deposit', 'Depósito').replace('Withdraw', 'Saque')}: R$ {transition['valor']:.2f}"
+
+    print(extract)
+    print(f"\nSaldo atual: \tR$ {account.balance:.2f}") 
+    print(f"=============================================")
+
+def create_account(account_number, clients, accounts):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
+
+    if not client:
+        print("Cliente não encontrado.")
+        return
+    
+    account = CurrentAccount.new_account(client, account_number)
+    accounts.append(account)
+    client.add_account(account)
+
+    print(f"=== Conta criada com sucesso! ===")
+
+def list_accounts(accounts):
+    for accont in accounts:
+        print("=" * 50)
+        print(textwrap.dedent(str(accont)))
+
+def add_client(clients):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
+
+    if client:
+        print("Cliente já cadastrado.")
+        return
+
+    name = input("Informe o nome do cliente: ")
+    date_of_birth = input("Informe a data de nascimento do cliente (DD/MM/AAAA): ")
+    address = input("Informe o endereço do cliente: ")
+
+    new_client = NaturalPerson(name=name, cpf=cpf, date_of_birth=date_of_birth, address=address)
+
+    clients.append(new_client)
+    print(f"=== Cliente {new_client.name} adicionado com sucesso!===")
+
+def show_client(clients):
+    cpf = input("Informe o CPF do cliente: ")
+    client = filter_client(cpf, clients)
+
+    if not client:
+        print("Cliente não encontrado.")
+        return
+    
+    print(f"\n=== Cliente: {client.name} ===")
+    print(f"CPF: {client.cpf}")
+    print(f"Data de Nascimento: {client.date_of_birth}")
+    print(f"Endereço: {client.address}")
+    
+    if client.accounts:
+        print("Contas:")
+        for account in client.accounts:
+            print(f" - Conta {account.account_number} (Agência: {account.agency})")
+    else:
+        print("Nenhuma conta associada ao cliente.")
 
 if __name__ == "__main__":
-    bank = BankSystem()
-    
+    main()
